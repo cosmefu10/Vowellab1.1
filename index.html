@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vowel Lab — Entrenador de vocales del inglés</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1b2a;--surf:#152236;--surf2:#1a2a40;--brd:#243655;
+  --txt:#e2e8f0;--txt2:#64748b;--txt3:#94a3b8;
+  --blue:#60a5fa;--orange:#fb923c;--green:#34d399;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+body{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:14px;font-size:14px}
+h1{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.sub{font-size:10px;color:var(--txt2);margin:3px 0 13px}
+button{font-family:inherit;cursor:pointer}
+.tabs{display:flex;gap:4px;margin-bottom:14px;background:var(--surf);padding:4px;border-radius:12px;border:1px solid var(--brd);max-width:440px}
+.tab{flex:1;font-size:12px;font-weight:600;padding:8px 6px;border-radius:8px;border:none;background:transparent;color:var(--txt2)}
+.tab.active{background:var(--surf2);color:var(--txt)}
+.view{display:none}.view.active{display:block}
+.layout{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.chart-wrap{background:var(--surf);border-radius:12px;padding:8px 4px 4px;border:1px solid var(--brd);overflow-x:auto}
+svg{display:block}
+.panel{flex:1 1 200px;min-width:190px;background:var(--surf);border-radius:12px;padding:14px;border:1px solid var(--brd)}
+.cite{font-size:9px;color:#2d4a66;margin-top:12px;text-align:right}
+.vowel-group{cursor:pointer}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.mic-btn{font-size:12px;font-weight:600;padding:7px 16px;border-radius:20px;border:1px solid var(--brd);background:var(--surf);color:var(--txt2);display:flex;align-items:center;gap:7px}
+.mic-btn.live{border-color:#f87171;background:#f8717118;color:#f87171}
+.lvl{width:60px;height:5px;border-radius:3px;background:var(--brd);overflow:hidden}
+.lvl>div{height:100%;background:var(--green);width:0%;transition:width .08s}
+.readout{font-family:var(--mono);font-size:12px;color:var(--txt3);background:var(--surf2);padding:5px 10px;border-radius:7px;border:1px solid var(--brd)}
+.btn{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--brd);background:transparent;color:var(--txt2)}
+.btn-on{border-color:#818cf8;background:#818cf818;color:#818cf8}
+.sel{font-size:12px;padding:6px 10px;border-radius:8px;background:var(--surf2);color:var(--txt);border:1px solid var(--brd);font-family:inherit}
+.seg{display:inline-flex;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;overflow:hidden}
+.seg button{font-size:12px;padding:6px 14px;border:none;background:transparent;color:var(--txt2)}
+.seg button.on{background:var(--blue);color:#06243f;font-weight:700}
+.word-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:7px;margin-top:4px}
+.word-chip{padding:9px 6px;border-radius:9px;background:var(--surf2);border:1px solid var(--brd);color:var(--txt);font-size:13px;font-weight:600;text-align:center}
+.word-chip:active{transform:scale(.96)}
+.pair-card{background:var(--surf);border-radius:12px;border:1px solid var(--brd);padding:12px;margin-bottom:10px}
+.pair-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.pair-row{display:flex;gap:8px}
+.pair-side{flex:1;background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:10px;text-align:center}
+.pair-word{font-size:17px;font-weight:700;margin-bottom:2px}
+.pair-ipa{font-size:12px;color:var(--txt2);font-family:var(--mono)}
+.play-mini{margin-top:7px;font-size:11px;padding:4px 10px;border-radius:14px;border:1px solid var(--brd);background:transparent;color:var(--txt2);width:100%}
+.note{font-size:11px;color:var(--txt3);line-height:1.55;background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:10px;margin-bottom:12px}
+.note b{color:var(--txt)}
+em{color:var(--txt3);font-style:italic}
+.grp-label{font-size:10px;color:var(--txt2);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 7px}
+</style>
+</head>
+<body>
+
+<h1>Vowel Lab</h1>
+<p class="sub">Entrenador de vocales del inglés · análisis de formantes en vivo · datos de referencia: Hillenbrand et al. (1995)</p>
+
+<div class="bar" style="margin-bottom:10px">
+  <span style="font-size:12px;color:var(--txt2)">Tu voz / voz de referencia:</span>
+  <div class="seg" id="sexSeg">
+    <button data-s="m" onclick="setSex('m')">Hombre</button>
+    <button data-s="w" class="on" onclick="setSex('w')">Mujer</button>
+    <button data-s="c" onclick="setSex('c')">Niño/a</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-v="map" onclick="switchTab('map')">Mapa + Voz</button>
+  <button class="tab" data-v="practice" onclick="switchTab('practice')">Práctica</button>
+  <button class="tab" data-v="pairs" onclick="switchTab('pairs')">Pares mínimos</button>
+</div>
+
+<!-- TAB 1 -->
+<div class="view active" id="view-map">
+  <div class="bar">
+    <button class="mic-btn" id="micBtn" onclick="toggleMic('map')"><span id="micIcon">🎙</span><span id="micLbl">Activar micrófono</span></button>
+    <div class="lvl"><div id="lvlFill"></div></div>
+    <span class="readout" id="readout">F1 — · F2 —</span>
+    <button class="btn" id="pinBtn" onclick="dropPin()" style="display:none">📍 Fijar</button>
+    <button class="btn" id="clrPin" onclick="clearPins()" style="display:none">Limpiar</button>
+    <button class="btn btn-on" id="btnZ" onclick="toggleZones()">◉ Líneas guía</button>
+  </div>
+  <div class="layout">
+    <div class="chart-wrap"><svg id="chart" width="480" height="380"></svg></div>
+    <div class="panel" id="panel"></div>
+  </div>
+  <p class="cite">Mantené la vocal sostenida ~1 s para una lectura estable · valores promedio aproximados</p>
+</div>
+
+<!-- TAB 2 -->
+<div class="view" id="view-practice">
+  <div class="note" id="practiceNote"></div>
+  <div class="bar">
+    <span style="font-size:12px;color:var(--txt2)">Vocal:</span>
+    <select class="sel" id="practiceVowel" onchange="renderPractice()"></select>
+  </div>
+  <div class="layout">
+    <div style="flex:1 1 240px;min-width:220px">
+      <div class="grp-label">10 palabras de práctica — tocá para escuchar</div>
+      <div class="word-grid" id="wordGrid"></div>
+    </div>
+    <div style="flex:1 1 260px;min-width:240px">
+      <div class="bar">
+        <button class="mic-btn" id="micBtn2" onclick="toggleMic('practice')"><span id="micIcon2">🎙</span><span id="micLbl2">Tu turno</span></button>
+        <div class="lvl"><div id="lvlFill2"></div></div>
+        <span class="readout" id="readout2">F1 — · F2 —</span>
+      </div>
+      <div class="chart-wrap"><svg id="chart2" width="360" height="310"></svg></div>
+      <div id="feedback" style="font-size:12px;color:var(--txt3);margin-top:8px;min-height:18px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3 -->
+<div class="view" id="view-pairs">
+  <div class="note"><b>Shadowing autodidacta:</b> escuchá un lado, repetilo imitando el sonido, y comparalo con el otro. Estos pares solo cambian una vocal — son los contrastes que más cuestan a hablantes no nativos. Usá "Escuchar ambas" para oír el contraste seguido.</div>
+  <div class="bar">
+    <span style="font-size:12px;color:var(--txt2)">Contraste:</span>
+    <select class="sel" id="pairSet" onchange="renderPairs()"></select>
+  </div>
+  <div id="pairsList"></div>
+</div>
+
+<script>
+// ╔═══════════════ DATOS — Hillenbrand et al. (1995), medias F1/F2 (Hz) ════════╗
+// cada vocal: [F1,F2] para m=hombre, w=mujer, c=niño/a
+const VOWELS=[
+  {id:"i", ipa:"iː",word:"heed", cat:"t",m:[342,2322],w:[437,2761],c:[452,3081],desc:"Vocal alta anterior tensa. Universal."},
+  {id:"ɪ", ipa:"ɪ", word:"hid",  cat:"l",m:[427,2034],w:[483,2365],c:[511,2552],desc:"Alta anterior laxa. Se confunde con /iː/ y /ɛ/."},
+  {id:"e", ipa:"eɪ",word:"hayed",cat:"t",m:[476,2089],w:[536,2530],c:[564,2656],desc:"Media-alta anterior (diptongo /eɪ/)."},
+  {id:"ɛ", ipa:"ɛ", word:"head", cat:"l",m:[580,1799],w:[731,2058],c:[749,2267],desc:"Media anterior laxa. Entre /ɪ/ y /æ/."},
+  {id:"æ", ipa:"æ", word:"had",  cat:"l",m:[588,1952],w:[669,2349],c:[717,2501],desc:"Baja anterior laxa. Difícil para L2: solo existe en ~1% de los idiomas."},
+  {id:"ɑ", ipa:"ɑ", word:"hod",  cat:"t",m:[768,1333],w:[936,1551],c:[1002,1688],desc:"Baja posterior. Vocal de 'cot'. Fusionada con /ɔ/ en mucho de EE.UU."},
+  {id:"ɔ", ipa:"ɔ", word:"hawed",cat:"t",m:[652,997], w:[781,1136],c:[803,1210],desc:"Media-baja posterior redondeada. Vocal de 'caught'."},
+  {id:"o", ipa:"oʊ",word:"hoed", cat:"t",m:[497,910], w:[555,1035],c:[597,1137],desc:"Media-alta posterior (diptongo /oʊ/)."},
+  {id:"ʊ", ipa:"ʊ", word:"hood", cat:"l",m:[469,1122],w:[519,1225],c:[568,1490],desc:"Alta posterior laxa. Vocal de 'book'."},
+  {id:"u", ipa:"uː",word:"who'd",cat:"t",m:[378,997], w:[459,1105],c:[494,1345],desc:"Alta posterior tensa redondeada. Universal."},
+  {id:"ʌ", ipa:"ʌ", word:"hud",  cat:"l",m:[623,1200],w:[753,1426],c:[749,1546],desc:"Media central. Vocal de 'cup'. Entre /ʊ/ y /ɑ/."},
+  {id:"ɝ", ipa:"ɝ",word:"heard", cat:"r",m:[474,1379],w:[523,1588],c:[586,1719],desc:"Central rótica (con color de 'r'). Vocal de 'bird'."},
+];
+// 10 palabras por vocal (evitando contaminación rótica salvo /ɝ/)
+const WORDS={
+  i:["see","sheep","green","beat","meet","leave","team","feet","peace","key"],
+  ɪ:["sit","ship","fish","big","milk","win","kid","fill","his","bit"],
+  e:["day","name","rain","cake","play","late","wait","face","gate","eight"],
+  ɛ:["bed","red","ten","pen","get","leg","egg","bread","friend","said"],
+  æ:["cat","bad","hand","apple","map","fast","black","man","back","sad"],
+  ɑ:["hot","dog","box","top","lock","sock","mom","pot","odd","body"],
+  ɔ:["law","saw","caught","ball","talk","walk","fall","dawn","hawk","bought"],
+  o:["go","boat","home","snow","road","phone","coat","slow","know","no"],
+  ʊ:["book","look","put","foot","good","cook","full","push","wood","took"],
+  u:["blue","food","moon","soon","true","shoe","two","room","school","June"],
+  ʌ:["cup","bus","sun","mud","luck","jump","cut","run","love","much"],
+  ɝ:["bird","word","turn","first","work","learn","girl","hurt","nurse","world"],
+};
+// Pares mínimos (solo palabras reales)
+const PAIRS=[
+  {key:"i/ɪ",label:"/iː/ vs /ɪ/  (sheep–ship)",a:"i",b:"ɪ",items:[["sheep","ship"],["seat","sit"],["feet","fit"],["leave","live"],["beat","bit"],["green","grin"],["heel","hill"],["eat","it"],["deep","dip"],["peak","pick"]]},
+  {key:"ɪ/ɛ",label:"/ɪ/ vs /ɛ/  (bit–bet)",a:"ɪ",b:"ɛ",items:[["bit","bet"],["sit","set"],["lid","led"],["pin","pen"],["bid","bed"],["big","beg"],["tin","ten"],["lit","let"],["rid","red"],["din","den"]]},
+  {key:"ɛ/æ",label:"/ɛ/ vs /æ/  (bed–bad)",a:"ɛ",b:"æ",items:[["bed","bad"],["pen","pan"],["men","man"],["said","sad"],["lend","land"],["send","sand"],["beg","bag"],["head","had"],["gem","jam"],["dead","dad"]]},
+  {key:"æ/ɑ",label:"/æ/ vs /ɑ/  (cat–cot)  ★ clave L2",a:"æ",b:"ɑ",items:[["cat","cot"],["hat","hot"],["cap","cop"],["sack","sock"],["map","mop"],["lack","lock"],["pat","pot"],["tap","top"],["sad","sod"],["mass","moss"]]},
+  {key:"ɑ/ɔ",label:"/ɑ/ vs /ɔ/  (cot–caught)",a:"ɑ",b:"ɔ",items:[["cot","caught"],["Don","Dawn"],["stock","stalk"],["odd","awed"],["hock","hawk"],["tot","taught"],["pod","pawed"],["knotty","naughty"],["cod","cawed"]]},
+  {key:"ʌ/ɑ",label:"/ʌ/ vs /ɑ/  (cut–cot)  ★ clave L2",a:"ʌ",b:"ɑ",items:[["cut","cot"],["nut","not"],["hut","hot"],["bug","bog"],["cup","cop"],["duck","dock"],["gut","got"],["rub","rob"],["suck","sock"],["luck","lock"]]},
+  {key:"ʊ/ʌ",label:"/ʊ/ vs /ʌ/  (look–luck)",a:"ʊ",b:"ʌ",items:[["look","luck"],["book","buck"],["took","tuck"],["put","putt"],["could","cud"],["stood","stud"]]},
+  {key:"u/ʊ",label:"/uː/ vs /ʊ/  (fool–full)",a:"u",b:"ʊ",items:[["fool","full"],["pool","pull"],["Luke","look"],["suit","soot"],["wooed","wood"],["who'd","hood"],["cooed","could"],["stewed","stood"]]},
+];
+const GUIDES=[ // líneas que conectan vocales para ver la forma del trapecio
+  ["i","ɪ","ɛ","æ"],         // frente, de arriba a abajo
+  ["u","ʊ","ɔ","ɑ"],         // atrás, de arriba a abajo
+  ["i","u"],["æ","ɑ"],       // techo y piso
+];
+const CCHEX={t:"#60a5fa",l:"#fb923c",r:"#34d399"};
+const CL={t:"Tensa / larga — periférica, estable",l:"Laxa — central, variable en L2",r:"Rótica (con 'r')"};
+
+// ╔═══════════════ ESTADO ════════════════════════════════════════════════════╗
+let SEX='w', sel=null, zones=true, pins=[], liveF=null;
+function vf(v){return v[SEX];}            // [F1,F2] según sexo
+
+// ╔═══════════════ GEOMETRÍA (ejes dinámicos por sexo) ═══════════════════════╗
+function ranges(){
+  const f1=VOWELS.map(v=>vf(v)[0]), f2=VOWELS.map(v=>vf(v)[1]);
+  return{
+    f1min:Math.min(...f1)-70,f1max:Math.max(...f1)+70,
+    f2min:Math.min(...f2)-150,f2max:Math.max(...f2)+200,
+  };
+}
+function geom(W,H){
+  const P={t:30,r:30,b:44,l:52},PW=W-P.l-P.r,PH=H-P.t-P.b,R=ranges();
+  return{W,H,P,PW,PH,R,
+    fx:f=>P.l+(R.f2max-f)/(R.f2max-R.f2min)*PW,   // F2 alto → izquierda
+    fy:f=>P.t+(f-R.f1min)/(R.f1max-R.f1min)*PH};   // F1 alto → abajo
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function ticks(min,max,step){const t=[],s=Math.ceil(min/step)*step;for(let v=s;v<=max;v+=step)t.push(v);return t;}
+
+// ╔═══════════════ DIBUJO ════════════════════════════════════════════════════╗
+function draw(svgId,g,opts){
+  opts=opts||{};let s='';const{P,PW,PH,R}=g;
+  s+=`<rect x="${P.l}" y="${P.t}" width="${PW}" height="${PH}" fill="#1a2a40" rx="4"/>`;
+  ticks(R.f1min,R.f1max,100).forEach(f=>{s+=`<line x1="${P.l}" x2="${P.l+PW}" y1="${g.fy(f)}" y2="${g.fy(f)}" stroke="#1c3250"/>`;
+    s+=`<text x="${P.l-5}" y="${g.fy(f)}" text-anchor="end" dominant-baseline="middle" font-size="8" fill="#64748b">${f}</text>`;});
+  ticks(R.f2min,R.f2max,300).forEach(f=>{s+=`<line x1="${g.fx(f)}" x2="${g.fx(f)}" y1="${P.t}" y2="${P.t+PH}" stroke="#1c3250"/>`;
+    s+=`<text x="${g.fx(f)}" y="${P.t+PH+12}" text-anchor="middle" font-size="8" fill="#64748b">${f}</text>`;});
+  s+=`<rect x="${P.l}" y="${P.t}" width="${PW}" height="${PH}" fill="none" stroke="#243655" rx="4"/>`;
+
+  // líneas guía (trapecio vocálico)
+  if(zones&&!opts.target){
+    GUIDES.forEach(path=>{
+      const pts=path.map(id=>VOWELS.find(v=>v.id===id)).map(v=>`${g.fx(vf(v)[1])},${g.fy(vf(v)[0])}`).join(' ');
+      s+=`<polyline points="${pts}" fill="none" stroke="#34507a" stroke-width="1" stroke-opacity="0.6"/>`;
+    });
+  }
+
+  VOWELS.forEach(v=>{
+    const F=vf(v),x=g.fx(F[1]),y=g.fy(F[0]),isSel=sel===v.id,isTgt=opts.target===v.id;
+    if(opts.target&&!isTgt){ // contexto tenue en mini-chart
+      s+=`<circle cx="${x}" cy="${y}" r="9" fill="#243655" fill-opacity="0.55"/>`;
+      s+=`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="#4a6585">${v.ipa}</text>`;return;
+    }
+    const c=CCHEX[v.cat],fs=v.ipa.length>1?9:13,r=isSel||isTgt?22:18;
+    s+=`<g class="vowel-group" data-id="${v.id}">`;
+    if(isTgt)s+=`<circle cx="${x}" cy="${y}" r="29" fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="2 3"><animate attributeName="r" values="27;32;27" dur="1.6s" repeatCount="indefinite"/></circle>`;
+    s+=`<circle cx="${x}" cy="${y}" r="${r}" fill="${isSel?'#0a1525':c}" fill-opacity="${isSel?1:0.9}" stroke="${isSel?c:'rgba(255,255,255,0.12)'}" stroke-width="${isSel?2.5:1.5}"/>`;
+    s+=`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="700" fill="${isSel?c:'white'}" pointer-events="none">${v.ipa}</text></g>`;
+  });
+
+  pins.forEach((p,i)=>{const x=clamp(g.fx(p.f2),P.l,P.l+PW),y=clamp(g.fy(p.f1),P.t,P.t+PH);
+    s+=`<circle cx="${x}" cy="${y}" r="5" fill="#fff" stroke="#0d1b2a" stroke-width="1.5"/><text x="${x}" y="${y-9}" text-anchor="middle" font-size="8" fill="#fff" font-family="monospace">${i+1}</text>`;});
+
+  if(liveF){const x=clamp(g.fx(liveF.f2),P.l,P.l+PW),y=clamp(g.fy(liveF.f1),P.t,P.t+PH);
+    s+=`<circle cx="${x}" cy="${y}" r="9" fill="#f87171" fill-opacity="0.25"/><circle cx="${x}" cy="${y}" r="5" fill="#f87171" stroke="#fff" stroke-width="1.5"/>`;}
+
+  const mx=P.l+PW/2,my=P.t+PH/2;
+  s+=`<text x="${mx}" y="${g.H-4}" text-anchor="middle" font-size="9" fill="#64748b">F2 (Hz) — decrece →</text>`;
+  s+=`<text x="9" y="${my}" text-anchor="middle" font-size="9" fill="#64748b" transform="rotate(-90 9 ${my})">F1 (Hz) — crece ↓</text>`;
+  document.getElementById(svgId).innerHTML=s;
+}
+function drawMap(){draw('chart',geom(480,380));}
+function drawMini(){const id=document.getElementById('practiceVowel').value;draw('chart2',geom(360,310),{target:id});}
+
+function drawPanel(){
+  const el=document.getElementById('panel');
+  if(!sel){el.innerHTML=legendHTML();return;}
+  const v=VOWELS.find(x=>x.id===sel),F=vf(v),c=CCHEX[v.cat],bfs=v.ipa.length>1?17:24;
+  const w=v.word.replace("'","");
+  el.innerHTML=`
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+  <div style="width:50px;height:50px;border-radius:50%;background:${c};display:flex;align-items:center;justify-content:center;font-size:${bfs}px;font-weight:800;color:#fff;flex-shrink:0">${v.ipa}</div>
+  <div><div style="font-size:20px;font-weight:800">/${v.ipa}/</div>
+  <div style="font-size:12px;color:#64748b">como en <em>"${v.word}"</em></div>
+  <div style="font-size:10px;color:#64748b;font-family:var(--mono)">F1 ${F[0]} · F2 ${F[1]} Hz (${SEX==='m'?'hombre':SEX==='w'?'mujer':'niño/a'})</div></div>
+</div>
+<button onclick="speak('${w}')" style="width:100%;padding:7px;border-radius:8px;margin-bottom:12px;background:var(--surf2);border:1px solid var(--brd);color:#64748b;cursor:pointer;font-size:12px;font-family:inherit">▶ Escuchar "${v.word}"</button>
+<p style="font-size:11.5px;color:var(--txt3);line-height:1.55">${v.desc}</p>`;
+}
+function legendHTML(){
+  let s=`<p style="font-size:11px;color:#64748b;margin-bottom:14px;line-height:1.5">Tocá una vocal para verla, o activá el micrófono y sostené una vocal: tu punto rojo aparece en el mapa. Elegí arriba tu sexo para que la referencia coincida con tu voz.</p>`;
+  s+=`<div class="grp-label" style="margin-top:0">Tipo de vocal</div>`;
+  [['t','#60a5fa'],['l','#fb923c'],['r','#34d399']].forEach(([k,c])=>
+    s+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><div style="width:12px;height:12px;border-radius:50%;background:${c}"></div><span style="font-size:11px;color:var(--txt3)">${CL[k]}</span></div>`);
+  s+=`<div style="display:flex;align-items:center;gap:8px;margin-top:12px"><div style="width:12px;height:12px;border-radius:50%;background:#f87171;border:1.5px solid #fff"></div><span style="font-size:11px;color:var(--txt3)">Tu voz (en vivo)</span></div>`;
+  s+=`<div style="display:flex;align-items:center;gap:8px;margin-top:7px"><div style="width:12px;height:12px;border-radius:50%;background:#fff"></div><span style="font-size:11px;color:var(--txt3)">Puntos fijados</span></div>`;
+  return s;
+}
+
+// ╔═══════════════ MOTOR DE FORMANTES (LPC) ══════════════════════════════════╗
+function cmul(a,b){return{re:a.re*b.re-a.im*b.im,im:a.re*b.im+a.im*b.re};}
+function cdiv(a,b){const d=b.re*b.re+b.im*b.im;return{re:(a.re*b.re+a.im*b.im)/d,im:(a.im*b.re-a.re*b.im)/d};}
+function csub(a,b){return{re:a.re-b.re,im:a.im-b.im};}
+function cabs(a){return Math.hypot(a.re,a.im);}
+function levinson(R,order){
+  const a=new Float64Array(order+1);a[0]=1;let err=R[0];if(err<=0)return null;
+  for(let i=1;i<=order;i++){let acc=R[i];for(let j=1;j<i;j++)acc+=a[j]*R[i-j];
+    const k=-acc/err,prev=a.slice();
+    for(let j=1;j<i;j++)a[j]=prev[j]+k*prev[i-j];a[i]=k;err*=(1-k*k);if(err<=0)break;}
+  return a;
+}
+function polyRoots(coefAsc){
+  let c=coefAsc.slice();while(c.length>1&&Math.abs(c[c.length-1])<1e-9)c.pop();
+  const n=c.length-1;if(n<1)return[];
+  const lead=c[n],mon=c.map(v=>v/lead),d=mon.slice().reverse();
+  const evalP=w=>{let v={re:d[0],im:0};for(let k=1;k<=n;k++)v={re:v.re*w.re-v.im*w.im+d[k],im:v.re*w.im+v.im*w.re};return v;};
+  let z=[],p={re:1,im:0};const seed={re:0.4,im:0.9};
+  for(let i=0;i<n;i++){z.push({re:p.re,im:p.im});p=cmul(p,seed);}
+  for(let it=0;it<60;it++){let md=0;
+    for(let i=0;i<n;i++){const num=evalP(z[i]);let den={re:1,im:0};
+      for(let j=0;j<n;j++)if(j!==i)den=cmul(den,csub(z[i],z[j]));
+      const dl=cdiv(num,den);z[i]=csub(z[i],dl);md=Math.max(md,cabs(dl));}
+    if(md<1e-9)break;}
+  return z;
+}
+function extractFormants(frame,fsNative){
+  const factor=Math.max(1,Math.round(fsNative/11000)),fs=fsNative/factor,dn=Math.floor(frame.length/factor);
+  const ds=new Float64Array(dn);
+  for(let i=0;i<dn;i++){let acc=0;for(let j=0;j<factor;j++)acc+=frame[i*factor+j];ds[i]=acc/factor;}
+  for(let i=dn-1;i>0;i--)ds[i]-=0.97*ds[i-1];
+  for(let i=0;i<dn;i++)ds[i]*=0.54-0.46*Math.cos(2*Math.PI*i/(dn-1));
+  const order=Math.round(fs/1000)+2,R=new Float64Array(order+1);
+  for(let lag=0;lag<=order;lag++){let acc=0;for(let i=lag;i<dn;i++)acc+=ds[i]*ds[i-lag];R[lag]=acc;}
+  if(R[0]===0)return null;R[0]*=1.0001;
+  const a=levinson(R,order);if(!a)return null;
+  const roots=polyRoots(Array.from(a)),fmts=[];
+  roots.forEach(w=>{if(cabs(w)<1e-6)return;
+    const zr=cdiv({re:1,im:0},w),ang=Math.atan2(zr.im,zr.re);
+    if(ang<=0.0001)return;
+    const freq=ang*fs/(2*Math.PI),bw=-Math.log(Math.min(cabs(zr),0.99999))*fs/Math.PI;
+    if(freq>90&&freq<fs/2-150&&bw<500)fmts.push(freq);});
+  fmts.sort((x,y)=>x-y);
+  let F1=null,F2=null;
+  for(const f of fmts){
+    if(F1===null&&f>=200&&f<=1200){F1=f;continue;}
+    if(F1!==null&&F2===null&&f>F1+150&&f<=3300){F2=f;break;}}
+  if(F1===null||F2===null)return null;
+  return{f1:F1,f2:F2};
+}
+function median(arr){const s=arr.slice().sort((a,b)=>a-b),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;}
+
+// ╔═══════════════ CAPTURA DE AUDIO ══════════════════════════════════════════╗
+let audioCtx=null,analyser=null,micStream=null,rafId=null,micMode=null,bufF1=[],bufF2=[];
+async function toggleMic(mode){
+  const prev=micMode;
+  if(prev)stopMic();
+  if(prev===mode)return;          // estaba activo en esta pestaña → ahora apagado
+  try{micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});}
+  catch(e){alert("No se pudo acceder al micrófono. Revisá los permisos del navegador.");return;}
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  const src=audioCtx.createMediaStreamSource(micStream);
+  analyser=audioCtx.createAnalyser();analyser.fftSize=2048;src.connect(analyser);
+  micMode=mode;bufF1=[];bufF2=[];setMicUI(mode,true);
+  if(mode==='map'){document.getElementById('pinBtn').style.display='';document.getElementById('clrPin').style.display=pins.length?'':'none';}
+  loop();
+}
+function stopMic(){
+  if(rafId)cancelAnimationFrame(rafId);rafId=null;
+  if(micStream)micStream.getTracks().forEach(t=>t.stop());
+  if(audioCtx)audioCtx.close();
+  audioCtx=null;analyser=null;micStream=null;
+  const m=micMode;micMode=null;liveF=null;bufF1=[];bufF2=[];
+  if(m){setMicUI(m,false);
+    document.getElementById(m==='map'?'lvlFill':'lvlFill2').style.width='0%';
+    document.getElementById(m==='map'?'readout':'readout2').textContent='F1 — · F2 —';}
+  if(m==='map'){document.getElementById('pinBtn').style.display='none';drawMap();}
+  else drawMini();
+}
+function setMicUI(mode,on){
+  if(mode==='map'){document.getElementById('micBtn').className='mic-btn'+(on?' live':'');
+    document.getElementById('micIcon').textContent=on?'⏹':'🎙';document.getElementById('micLbl').textContent=on?'Detener':'Activar micrófono';}
+  else{document.getElementById('micBtn2').className='mic-btn'+(on?' live':'');
+    document.getElementById('micIcon2').textContent=on?'⏹':'🎙';document.getElementById('micLbl2').textContent=on?'Detener':'Tu turno';}
+}
+function loop(){
+  rafId=requestAnimationFrame(loop);
+  const buf=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(buf);
+  let rms=0;for(let i=0;i<buf.length;i++)rms+=buf[i]*buf[i];rms=Math.sqrt(rms/buf.length);
+  const fill=micMode==='map'?'lvlFill':'lvlFill2',ro=micMode==='map'?'readout':'readout2';
+  document.getElementById(fill).style.width=Math.min(100,rms*400)+'%';
+  if(rms>0.012){
+    const f=extractFormants(buf,audioCtx.sampleRate);
+    if(f){bufF1.push(f.f1);bufF2.push(f.f2);if(bufF1.length>8){bufF1.shift();bufF2.shift();}
+      if(bufF1.length>=3){liveF={f1:median(bufF1),f2:median(bufF2)};
+        document.getElementById(ro).textContent=`F1 ${Math.round(liveF.f1)} · F2 ${Math.round(liveF.f2)}`;
+        micMode==='map'?drawMap():drawMini();
+        if(micMode==='practice')feedback();}}
+  }else{bufF1=[];bufF2=[];document.getElementById(ro).textContent='F1 — · F2 — (sostené una vocal)';}
+}
+function dropPin(){if(liveF){pins.push({f1:liveF.f1,f2:liveF.f2});document.getElementById('clrPin').style.display='';drawMap();}}
+function clearPins(){pins=[];document.getElementById('clrPin').style.display='none';drawMap();}
+
+// ╔═══════════════ TTS ═══════════════════════════════════════════════════════╗
+let enVoice=null;
+function pickVoice(){const vs=speechSynthesis.getVoices();enVoice=vs.find(v=>/en[-_]US/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null;}
+if('speechSynthesis'in window){speechSynthesis.onvoiceschanged=pickVoice;pickVoice();}
+function speak(word){if(!window.speechSynthesis)return;speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(word);u.lang='en-US';u.rate=0.8;if(enVoice)u.voice=enVoice;speechSynthesis.speak(u);}
+
+// ╔═══════════════ SEXO / ZONAS / TABS ═══════════════════════════════════════╗
+function setSex(s){SEX=s;pins=[];
+  document.querySelectorAll('#sexSeg button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+  drawMap();drawPanel();renderPractice();}
+function toggleZones(){zones=!zones;const b=document.getElementById('btnZ');
+  b.textContent=(zones?'◉':'○')+' Líneas guía';b.className='btn'+(zones?' btn-on':'');drawMap();}
+function switchTab(v){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.v===v));
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  if(micMode)stopMic();}
+function selectVowel(id){sel=(sel===id?null:id);drawMap();drawPanel();
+  if(sel)speak(VOWELS.find(v=>v.id===id).word.replace("'",""));}
+
+// ╔═══════════════ PRÁCTICA ══════════════════════════════════════════════════╗
+function renderPractice(){
+  const id=document.getElementById('practiceVowel').value;const v=VOWELS.find(x=>x.id===id),F=vf(v);
+  document.getElementById('practiceNote').innerHTML=`<b>/${v.ipa}/</b> como en <em>"${v.word}"</em> — ${v.desc} <span style="color:var(--txt2)">· Objetivo (${SEX==='m'?'hombre':SEX==='w'?'mujer':'niño/a'}): F1≈${F[0]} F2≈${F[1]} Hz.</span>`;
+  document.getElementById('wordGrid').innerHTML=WORDS[id].map(w=>`<button class="word-chip" data-say="${w}">${w}</button>`).join('');
+  document.getElementById('feedback').textContent='';drawMini();
+}
+function feedback(){
+  if(!(liveF&&micMode==='practice'))return;
+  const id=document.getElementById('practiceVowel').value,v=VOWELS.find(x=>x.id===id),F=vf(v);
+  const df1=liveF.f1-F[0],df2=liveF.f2-F[1],dist=Math.hypot(df1,df2);
+  let msg,clr;
+  if(dist<140){msg='✓ ¡Muy cerca del objetivo!';clr='var(--green)';}
+  else if(dist<320){msg='Cerca — ajustá un poco.';clr='#fbbf24';}
+  else{msg='Lejos del objetivo.';clr='#f87171';}
+  const h=[];
+  if(Math.abs(df1)>130)h.push(df1>0?'cerrá un poco la boca':'abrí más la boca');
+  if(Math.abs(df2)>250)h.push(df2>0?'lengua más atrás':'lengua más adelante');
+  document.getElementById('feedback').innerHTML=`<span style="color:${clr};font-weight:600">${msg}</span>`+(h.length?` <span style="color:var(--txt2)">— ${h.join(', ')}</span>`:'');
+}
+
+// ╔═══════════════ PARES MÍNIMOS ═════════════════════════════════════════════╗
+function renderPairs(){
+  const key=document.getElementById('pairSet').value,set=PAIRS.find(p=>p.key===key);
+  document.getElementById('pairsList').innerHTML=set.items.map((it,i)=>`
+<div class="pair-card">
+  <div class="pair-head"><span style="font-size:11px;color:var(--txt2);font-weight:600">Par ${i+1}</span>
+    <button class="play-mini" style="width:auto;margin:0" data-a="${it[0]}" data-b="${it[1]}">▶▶ Escuchar ambas</button></div>
+  <div class="pair-row">
+    <div class="pair-side"><div class="pair-word">${it[0]}</div><div class="pair-ipa">/${set.a==='i'?'iː':set.a==='u'?'uː':set.a==='e'?'eɪ':set.a==='o'?'oʊ':set.a}/</div>
+      <button class="play-mini" data-say="${it[0]}">▶ ${it[0]}</button></div>
+    <div class="pair-side"><div class="pair-word">${it[1]}</div><div class="pair-ipa">/${set.b==='i'?'iː':set.b==='u'?'uː':set.b==='e'?'eɪ':set.b==='o'?'oʊ':set.b}/</div>
+      <button class="play-mini" data-say="${it[1]}">▶ ${it[1]}</button></div>
+  </div>
+</div>`).join('');
+}
+
+// ╔═══════════════ EVENTOS (delegación → sin problemas de comillas) ══════════╗
+document.getElementById('chart').addEventListener('click',e=>{const g=e.target.closest('[data-id]');if(g)selectVowel(g.dataset.id);});
+document.body.addEventListener('click',e=>{
+  const sayer=e.target.closest('[data-say]');
+  if(sayer){speak(sayer.dataset.say);return;}
+  const both=e.target.closest('[data-a]');
+  if(both){speak(both.dataset.a);setTimeout(()=>speak(both.dataset.b),900);}
+});
+
+// ╔═══════════════ INIT ══════════════════════════════════════════════════════╗
+document.getElementById('practiceVowel').innerHTML=VOWELS.map(v=>`<option value="${v.id}">/${v.ipa}/ — ${v.word}</option>`).join('');
+document.getElementById('pairSet').innerHTML=PAIRS.map(p=>`<option value="${p.key}">${p.label}</option>`).join('');
+drawMap();drawPanel();renderPractice();renderPairs();
+</script>
+</body>
+</html>
